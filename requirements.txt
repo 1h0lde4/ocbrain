@@ -1,0 +1,64 @@
+# ── Core runtime ──────────────────────────────────────────────
+fastapi>=0.111.0,<0.120
+uvicorn[standard]>=0.30.0,<0.35
+httpx>=0.27.0,<0.29
+aiofiles>=23.2.1
+pydantic>=2.7.0,<3.0
+
+# ── Config ────────────────────────────────────────────────────
+tomli>=2.0.1
+tomli-w>=1.0.0
+watchdog>=4.0.0
+PyYAML>=6.0.1
+
+# ── Numeric ───────────────────────────────────────────────────
+# spacy 3.7.x caps numpy<2.0; sentence-transformers needs >=1.23
+numpy>=1.23.0,<2.0
+
+# ── NLP / parsing ─────────────────────────────────────────────
+# typer: spacy<3.8 needs <0.10.0, chromadb>=0.5 needs >=0.9.0
+typer>=0.9.0,<0.10.0
+spacy>=3.7.0,<3.8
+
+# ── Huggingface ecosystem ─────────────────────────────────────
+# Pinned together so pip resolves them as a consistent set.
+# transformers>=4.56.2 satisfies BOTH:
+#   trl 1.2.0 (needs >=4.56.2)  AND  sentence-transformers 3.x (needs >=4.36.0)
+# No upper-bound caps — they caused the broken mixed-version state.
+huggingface_hub>=0.26
+tokenizers>=0.21
+transformers>=4.56.2
+sentence-transformers>=3.0.1,<4.0
+
+# ── Vector store ──────────────────────────────────────────────
+chromadb>=0.5.0,<0.6
+
+# ── Web crawler ───────────────────────────────────────────────
+trafilatura>=1.9.0
+feedparser>=6.0.11
+
+# ── Training (optional — installed by setup.sh) ───────────────
+# torch            — installed by setup.sh with correct CPU/CUDA index
+# trl>=1.2.0       — installed by setup.sh training step
+# peft>=0.11.1
+# datasets>=2.19.2
+# bitsandbytes>=0.43.1
+
+# ── Voice (optional — installed by setup.sh) ─────────────────
+# openai-whisper>=20231117
+# pyttsx3>=2.90
+
+# ── Deduplication ─────────────────────────────────────────────
+datasketch>=1.6.4
+
+# ── System tray ───────────────────────────────────────────────
+pystray>=0.19.5
+Pillow>=10.3.0,<11.0
+
+# ── Storage ───────────────────────────────────────────────────
+sqlalchemy>=2.0.30
+
+# ── Utilities ─────────────────────────────────────────────────
+click>=8.1.7
+rich>=13.7.0
+requests>=2.32.0
