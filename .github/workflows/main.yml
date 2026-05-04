@@ -2,38 +2,69 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11"]
+
     steps:
-      # 1. Checkout repository
-      - name: Checkout code
+      # 1. Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Setup environment (example: Python)
+      # 2. Setup Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
 
-      # 3. Install dependencies
+      # 3. Cache dependencies (faster builds)
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # 4. Install dependencies
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
 
-      # 4. Run tests
-      - name: Run tests
-        run: |
-          pytest
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
 
-      # 5. Optional: Lint
-      - name: Lint code
+          if [ -f requirements-dev.txt ]; then
+            pip install -r requirements-dev.txt
+          fi
+
+          # Ensure pytest is available
+          pip install pytest
+
+      # 5. Lint (optional but recommended)
+      - name: Lint with flake8
         run: |
           pip install flake8
-          flake8 .
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      # 6. Run tests
+      - name: Run tests
+        run: |
+          python -m pytest -v
+
+      # 7. Optional: Upload test results (if you add coverage later)
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: .
