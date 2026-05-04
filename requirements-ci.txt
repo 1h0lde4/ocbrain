@@ -1,0 +1,14 @@
+# Core only (fast install, no heavy ML resolution)
+fastapi
+uvicorn
+httpx
+aiofiles
+pydantic
+numpy
+
+# Minimal utilities
+PyYAML
+requests
+
+# Testing
+pytest
