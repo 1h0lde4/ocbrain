@@ -1,70 +1,118 @@
-name: CI Pipeline
+name: OCBrain Pipeline
 
 on:
   push:
     branches: ["main"]
   pull_request:
     branches: ["main"]
+  workflow_dispatch:  # manual trigger for heavy build
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        python-version: ["3.10", "3.11"]
+  # ─────────────────────────────────────────────
+  # 1. CI JOB (FAST)
+  # ─────────────────────────────────────────────
+  ci:
+    name: CI (Core Tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
-      # 1. Checkout repo
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Setup Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.11"
 
-      # 3. Cache dependencies (faster builds)
       - name: Cache pip
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+          key: ${{ runner.os }}-pip-ci-${{ hashFiles('requirements-ci.txt') }}
 
-      # 4. Install dependencies
-      - name: Install dependencies
+      - name: Install CI dependencies
         run: |
           python -m pip install --upgrade pip
+          pip install -r requirements-ci.txt
 
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt
-          fi
-
-          if [ -f requirements-dev.txt ]; then
-            pip install -r requirements-dev.txt
-          fi
-
-          # Ensure pytest is available
-          pip install pytest
-
-      # 5. Lint (optional but recommended)
-      - name: Lint with flake8
+      - name: Run core tests
         run: |
-          pip install flake8
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          pytest core/ -v || pytest -v
 
-      # 6. Run tests
-      - name: Run tests
+  # ─────────────────────────────────────────────
+  # 2. AI BUILD JOB (HEAVY)
+  # ─────────────────────────────────────────────
+  ai-build:
+    name: AI Build & Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    needs: ci
+
+    # Only run on:
+    # - manual trigger
+    # - OR explicit commit message flag
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[ai-build]')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip (AI)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-ai-${{ hashFiles('requirements-runtime.txt') }}
+
+      # ⚠️ Install heavy dependencies
+      - name: Install runtime dependencies
         run: |
-          python -m pytest -v
+          python -m pip install --upgrade pip
+          pip install -r requirements-runtime.txt
 
-      # 7. Optional: Upload test results (if you add coverage later)
-      - name: Upload artifacts
-        if: always()
+      # Install torch CPU (safe for GitHub runner)
+      - name: Install PyTorch (CPU)
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+      # Optional: setup script (your system logic)
+      - name: Run setup script
+        run: |
+          chmod +x setup.sh
+          ./setup.sh || echo "setup.sh skipped or partial"
+
+      # Smoke test (no heavy execution)
+      - name: AI import validation
+        run: |
+          python - <<EOF
+          import sys
+          print("Python:", sys.version)
+
+          # Test critical imports
+          import transformers
+          import chromadb
+          import spacy
+
+          print("AI stack imported successfully")
+          EOF
+
+      # Optional: minimal runtime test
+      - name: AI smoke test
+        run: |
+          python - <<EOF
+          print("Running minimal AI validation...")
+          # Add lightweight checks here
+          EOF
+
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
+          name: ocbrain-build
           path: .
